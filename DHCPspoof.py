@@ -125,11 +125,11 @@ class dhcp_server(threading.Thread):
 				if your_ip == "0.0.0.0":
 					# No more available IP, send NAK
 					BootpHeader.yiaddr = your_ip # consider changing
-					nak = Ether(src=self.myMAC, dst="ff:ff:ff:ff:ff:ff")/
+					nak = (Ether(src=self.myMAC, dst="ff:ff:ff:ff:ff:ff")/
 						  IP(src=self.myIP, dst="255.255.255.255")/
 						  UDP(sport=67,dport=68)/
 						  BootpHeader/
-						  DHCP(options=[("message-type","nak"),("server_id",self.myIP),"end"])
+						  DHCP(options=[("message-type","nak"),("server_id",self.myIP),"end"]))
 					sendp(nak ,verbose=0, iface=self.iface)
                 
 				else:
