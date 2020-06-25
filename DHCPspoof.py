@@ -1,10 +1,10 @@
-#!/usr/bin/python3.8
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 import sys, argparse
 import threading
 from scapy.all import *
-import re, functools
+import re
 
 conf.checkIPaddr = False
 interface = "lo"
@@ -19,7 +19,7 @@ def checkArgs():
 	parser.add_argument("interface", help="interface to sniff")
 	parser.add_argument("start", help="DHCP start IP")
 	parser.add_argument("end", help="DHCP end IP")
-	parser.add_argument("netmask", help="DHCP subnet mask")
+	parser.add_argument("netmask", help="DHCP netmask")
 	args = parser.parse_args()
 	interface = args.interface
 	start_ip = args.start
@@ -33,6 +33,10 @@ def checkArgs():
 class dhcp_server(threading.Thread):
 	def __init__(self, **kargs):
 		threading.Thread.__init__(self)
+		self.filter="udp and src port 68 and dst port 67"
+
+		self.parser_args(**kargs) # parse keyword arguments
+		self.pool_init() # Initialise IP Pool
 
 		# DHCP information
 		self.myIP = get_if_addr(interface)
@@ -47,20 +51,14 @@ class dhcp_server(threading.Thread):
 		self.default_ttl=mac2str('40')
 		self.T1=0
 		self.T2=0
-		
-		self.parser_args(**kargs) # parse keyword arguments
-		self.pool_init() # Initialise IP Pool
-		self.get_broadcast() # set broadcast ip address
 
-		self.filter="udp and src port 68 and dst port 67"
+		self.broadcast = ltoa(atol(self.myIP) | (0xffffffff & ~atol(self.netmask)))
+
 
 	def parser_args(self,**kargs):
 		for key, value in kargs.items():
 			print(f"setting attribute {key}:{value}")
 			setattr(self, key, value)
-
-	def get_broadcast(self):
-		self.broadcast_address = re.sub("\.\d{1,3}", ".255", self.myIP)
 
 	def pool_init(self):
 		self.startIp=self.ip2int(self.start_sip)
@@ -106,12 +104,13 @@ class dhcp_server(threading.Thread):
 				("server_id", self.myIP),
 				('lease_time',self.lease_time),
 				("router", self.myIP),
-				("subnet_mask", self.subnet_mask),
+				("subnet_mask", self.netmask),
 				('renewal_time', self.renewal_time),
 				('name_server', self.myIP),
 				('rebinding_time', self.rebinding_time),
 				("broadcast_address", self.broadcast_address),
-				('default_ttl',self.default_ttl)]
+				('default_ttl',self.default_ttl)
+			]
 
 			Mtype = pkt[DHCP].options[0][1]
 			print(f"DHCP option {Mtype}")
@@ -209,7 +208,7 @@ class dhcp_server(threading.Thread):
 		return substr
 
 	def ip2int(self,ip):
-		return functools.reduce(lambda a,b: a<<8 | b, map(int, ip.split(".")))
+		return reduce(lambda a,b: a<<8 | b, map(int, ip.split(".")))
 
 	def num2ip(self,ip_num):
 		return ".".join(map(lambda n: str(ip_num>>n & 0xFF), [24,16,8,0]))
@@ -219,7 +218,7 @@ if __name__ == "__main__":
 
 	kargs = {
 		"iface": interface,
-		"subnet_mask": netmask, 
+		"netmask": netmask, 
 		"start_sip": start_ip,
 		"start_eip": end_ip,
 	}
