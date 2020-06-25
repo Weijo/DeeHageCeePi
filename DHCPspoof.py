@@ -57,7 +57,7 @@ class dhcp_server(threading.Thread):
 
 	def parser_args(self,**kargs):
 		for key, value in kargs.items():
-			print(f"setting attribute {key}:{value}")
+			print("setting attribute, ",key, " for ",value)
 			setattr(self, key, value)
 
 	def pool_init(self):
@@ -79,7 +79,7 @@ class dhcp_server(threading.Thread):
 		return "0.0.0.0"
 
 	def run(self):
-		print(f"running DHCP server on {self.myMAC}:{self.myIP}\n")
+		print("running DHCP server on %s:%s\n", self.myMAC, self.myIP)
 		print("sniffing...")
 		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
 
@@ -113,7 +113,7 @@ class dhcp_server(threading.Thread):
 			]
 
 			Mtype = pkt[DHCP].options[0][1]
-			print(f"DHCP option {Mtype}")
+			print("DHCP option %s\n",Mtype)
 			if Mtype == 1 or Mtype == 3:
 				dhcpsip = pkt[IP].src
 				dhcpsmac = pkt[Ether].src
@@ -135,14 +135,14 @@ class dhcp_server(threading.Thread):
 				else:
 					if Mtype == 1:
 						# Respond to DISCOVER Packets
-						print(f"Received DISCOVER from {pkt[Ether].src}")
+						print("Received DISCOVER from ",pkt[Ether].src)
 
 						DhcpOption.insert(0, ("message-type","offer"))
 						DhcpOption.append("end")
 						DhcpOption.append(mac2str("00")*20)
 						raw[DHCP]=DHCP(options=DhcpOption)
 
-						print(f"raw.summary={raw.summary}")
+						print("raw.summary=", {raw.summary})
 
 						if self.waittimeout(self.offer_timeout):
 							sendp(raw, iface=self.iface)
