@@ -80,6 +80,8 @@ class dhcp_server(threading.Thread):
 		return "0.0.0.0"
 
 	def run(self):
+		print(f"running DHCP server on {self.myMAC}:{self.myIP}\n")
+		print("sniffing...")
 		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
 
 	def detect_parserDhcp(self, pkt):
