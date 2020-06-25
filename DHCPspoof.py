@@ -136,7 +136,7 @@ class dhcp_server(threading.Thread):
 					if Mtype == 1:
 						# Respond to DISCOVER Packets
 						DhcpOption.insert(0, ("message-type","offer"))
- 						DhcpOption.append("end")
+						DhcpOption.append("end")
 						DhcpOption.append(mac2str("00")*20)
 						raw[DHCP]=DHCP(options=DhcpOption)
 
