@@ -214,5 +214,5 @@ if __name__ == "__main__":
 		"start_eip": end_ip,
 	}
 
-	t=DhcpServer(**kargs)
+	t=dhcp_server(**kargs)
 	t.start()
