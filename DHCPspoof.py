@@ -79,7 +79,7 @@ class dhcp_server(threading.Thread):
 		return "0.0.0.0"
 
 	def run(self):
-		print "running DHCP server on %s:%s\n", self.myMAC, self.myIP
+		print "running DHCP server on", self.myMAC, ":", self.myIP
 		print "sniffing..."
 		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
 
@@ -108,7 +108,7 @@ class dhcp_server(threading.Thread):
 				('renewal_time', self.renewal_time),
 				('name_server', self.myIP),
 				('rebinding_time', self.rebinding_time),
-				("broadcast_address", self.broadcast_address),
+				("broadcast_address", self.broadcast),
 				('default_ttl',self.default_ttl)
 			]
 
