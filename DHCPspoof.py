@@ -101,13 +101,14 @@ class dhcp_server(threading.Thread):
             				  yiaddr="0.0.0.0")/DHCP()
 
 			DhcpOption=[
-				("subnet_mask", self.netmask),
-				("router", self.myIP),
-				('name_server', self.myIP),
+				("client_id", mac2bin(pkt[Ether].src))
 				("server_id", self.myIP),
 				('lease_time',self.lease_time),
 				('renewal_time', self.renewal_time),
 				('rebinding_time', self.rebinding_time),
+				("subnet_mask", self.netmask),
+				("router", self.myIP),
+				('name_server', self.myIP),
 				("broadcast_address", self.broadcast),
 				('default_ttl',self.default_ttl)
 			]
