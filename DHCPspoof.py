@@ -202,7 +202,7 @@ class dhcp_server(threading.Thread):
 		len_str=len(hexstr)
 		substr=""
 		for i in range(0,len_str,2):
-		substr=substr+chr(int(hexstr[i:i+2],16))
+			substr=substr+chr(int(hexstr[i:i+2],16))
 		return substr
 
 	def ip2int(self,ip):
