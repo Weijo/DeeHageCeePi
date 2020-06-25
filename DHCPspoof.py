@@ -198,6 +198,13 @@ class dhcp_server(threading.Thread):
 		binmac=self.hex2bin(hexstr)
 		return binmac
 
+	def hex2bin(self,hexstr):
+		len_str=len(hexstr)
+		substr=""
+		for i in range(0,len_str,2):
+		substr=substr+chr(int(hexstr[i:i+2],16))
+		return substr
+
 	def ip2int(self,ip):
 		return functools.reduce(lambda a,b: a<<8 | b, map(int, ip.split(".")))
 
