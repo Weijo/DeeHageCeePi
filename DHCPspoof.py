@@ -55,10 +55,8 @@ class dhcp_server(threading.Thread):
 		self.filter="udp and src port 68 and dst port 67"
 
 	def parser_args(self,**kargs):
-		for key,value in kargs.items():
-			if key == "smac" or key == "dmac":
-				value = ":".join(value.split("-"))
-		setattr(self,key,value)
+		for key, value in kargs.items():
+			setattr(self, key, value)
 
 	def get_broadcast(self):
 		self.broadcast_address = re.sub("\.\d{1,3}", ".255", self.myIP)
