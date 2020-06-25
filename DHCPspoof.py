@@ -114,7 +114,7 @@ class dhcp_server(threading.Thread):
 				('default_ttl',self.default_ttl)]
 
 			Mtype = pkt[DHCP].options[0][1]
-
+			print(f"DHCP option {Mtype}")
 			if Mtype == 1 or Mtype == 3:
 				dhcpsip = pkt[IP].src
 				dhcpsmac = pkt[Ether].src
