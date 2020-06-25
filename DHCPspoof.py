@@ -56,6 +56,7 @@ class dhcp_server(threading.Thread):
 
 	def parser_args(self,**kargs):
 		for key, value in kargs.items():
+			print(f"setting attribute {key}:{value}")
 			setattr(self, key, value)
 
 	def get_broadcast(self):
@@ -114,7 +115,7 @@ class dhcp_server(threading.Thread):
 
 			Mtype = pkt[DHCP].options[0][1]
 
-			if Mtype == 0x01 or Mtype == 0x03:
+			if Mtype == 1 or Mtype == 3:
 				dhcpsip = pkt[IP].src
 				dhcpsmac = pkt[Ether].src
 				cli_mac = pkt[Ether].src
