@@ -140,7 +140,7 @@ class dhcp_server(threading.Thread):
 						DhcpOption.append(mac2str("00")*20)
 						raw[DHCP]=DHCP(options=DhcpOption)
 
-						print "raw.summary=", raw.summary
+						print(f"raw.summary={raw.summary}")
 
 						if self.waittimeout(self.offer_timeout):
 							sendp(raw, iface=self.iface)
