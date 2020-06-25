@@ -101,19 +101,19 @@ class dhcp_server(threading.Thread):
             				  yiaddr="0.0.0.0")/DHCP()
 
 			DhcpOption=[
+				("subnet_mask", self.netmask),
+				("router", self.myIP),
+				('name_server', self.myIP),
 				("server_id", self.myIP),
 				('lease_time',self.lease_time),
-				("router", self.myIP),
-				("subnet_mask", self.netmask),
 				('renewal_time', self.renewal_time),
-				('name_server', self.myIP),
 				('rebinding_time', self.rebinding_time),
 				("broadcast_address", self.broadcast),
 				('default_ttl',self.default_ttl)
 			]
 
 			Mtype = pkt[DHCP].options[0][1]
-			print "DHCP option %s\n", Mtype 
+			print "DHCP option", Mtype 
 			if Mtype == 1 or Mtype == 3:
 				dhcpsip = pkt[IP].src
 				dhcpsmac = pkt[Ether].src
