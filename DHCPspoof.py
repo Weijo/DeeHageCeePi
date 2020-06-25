@@ -155,7 +155,7 @@ class dhcp_server(threading.Thread):
 						if pkt[BOOTP].ciaddr == "0.0.0.0":
 							# New client
 							if self.waittimeout(self.ack_timeout):
- 								sendp(raw, verbose=0, iface=self.iface)
+								sendp(raw, verbose=0, iface=self.iface)
 								self.macip_dict[dhcpsmac]= your_ip
 								self.polllist.append(your_ip)
 						else:
