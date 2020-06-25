@@ -26,7 +26,7 @@ def checkArgs():
 	end_ip = args.end
 	netmask = args.netmask
 
-	if dhcp_server.ip2int("", start_ip) > dhcp_server.ip2int("", end_ip):
+	if atol(start_ip) > atol(end_ip):
 		print("err: start ip is larger than end ip")
 		sys.exit(2)
 
