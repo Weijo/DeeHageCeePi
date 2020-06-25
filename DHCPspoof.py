@@ -37,17 +37,17 @@ class dhcp_server(threading.Thread):
 		# DHCP information
 		self.myIP = get_if_addr(interface)
 		self.myMAC = get_if_hwaddr(interface)
-		self.polllist=[] # currently taken pool of IP
-        self.macip_dict={} # IP pool for previous users
-        self.lease_time=3600
-        self.renewal_time=self.lease_time/2
-        self.rebinding_time = self.lease_time*7/8
-        self.offer_timeout=0
-        self.ack_timeout=0
-        self.default_ttl=mac2str('40')
-        self.T1=0
-        self.T2=0
-
+		self.polllist=[] # Used IP pool
+		self.macip_dict={} # Record for previous users
+		self.lease_time=3600
+		self.renewal_time=self.lease_time/2
+		self.rebinding_time = self.lease_time*7/8
+		self.offer_timeout=0
+		self.ack_timeout=0
+		self.default_ttl=mac2str('40')
+		self.T1=0
+		self.T2=0
+		
 		self.parser_args(**kargs) # parse keyword arguments
 		self.pool_init() # Initialise IP Pool
 		self.get_broadcast() # set broadcast ip address
