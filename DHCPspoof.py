@@ -27,7 +27,7 @@ def checkArgs():
 	netmask = args.netmask
 
 	if atol(start_ip) > atol(end_ip):
-		print("err: start ip is larger than end ip")
+		print "err: start ip is larger than end ip"
 		sys.exit(2)
 
 class dhcp_server(threading.Thread):
@@ -57,7 +57,7 @@ class dhcp_server(threading.Thread):
 
 	def parser_args(self,**kargs):
 		for key, value in kargs.items():
-			print("setting attribute, ",key, " for ",value)
+			print "setting attribute",key, ":",value
 			setattr(self, key, value)
 
 	def pool_init(self):
@@ -79,8 +79,8 @@ class dhcp_server(threading.Thread):
 		return "0.0.0.0"
 
 	def run(self):
-		print("running DHCP server on %s:%s\n", self.myMAC, self.myIP)
-		print("sniffing...")
+		print "running DHCP server on %s:%s\n", self.myMAC, self.myIP
+		print "sniffing..."
 		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
 
 	def detect_parserDhcp(self, pkt):
@@ -113,7 +113,7 @@ class dhcp_server(threading.Thread):
 			]
 
 			Mtype = pkt[DHCP].options[0][1]
-			print("DHCP option %s\n",Mtype)
+			print "DHCP option %s\n", Mtype 
 			if Mtype == 1 or Mtype == 3:
 				dhcpsip = pkt[IP].src
 				dhcpsmac = pkt[Ether].src
@@ -135,14 +135,14 @@ class dhcp_server(threading.Thread):
 				else:
 					if Mtype == 1:
 						# Respond to DISCOVER Packets
-						print("Received DISCOVER from ",pkt[Ether].src)
+						print "Received DISCOVER from",pkt[Ether].src
 
 						DhcpOption.insert(0, ("message-type","offer"))
 						DhcpOption.append("end")
 						DhcpOption.append(mac2str("00")*20)
 						raw[DHCP]=DHCP(options=DhcpOption)
 
-						print("raw.summary=", {raw.summary})
+						print "raw.summary=", raw.summary
 
 						if self.waittimeout(self.offer_timeout):
 							sendp(raw, iface=self.iface)
