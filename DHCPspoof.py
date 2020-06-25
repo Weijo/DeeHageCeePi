@@ -101,7 +101,7 @@ class dhcp_server(threading.Thread):
             				  yiaddr="0.0.0.0")/DHCP()
 
 			DhcpOption=[
-				("client_id", mac2bin(pkt[Ether].src))
+				("client_id", self.mac2bin(pkt[Ether].src))
 				("server_id", self.myIP),
 				('lease_time',self.lease_time),
 				('renewal_time', self.renewal_time),
