@@ -136,6 +136,8 @@ class dhcp_server(threading.Thread):
 				else:
 					if Mtype == 1:
 						# Respond to DISCOVER Packets
+						print(f"Received DISCOVER from {pkt[Ether].src}")
+
 						DhcpOption.insert(0, ("message-type","offer"))
 						DhcpOption.append("end")
 						DhcpOption.append(mac2str("00")*20)
