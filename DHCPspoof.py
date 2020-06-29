@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys, argparse
+import sys, argparse, os, signal
 import threading
 from scapy.all import *
 import re
@@ -37,6 +37,7 @@ class dhcp_server(threading.Thread):
 
 		self.parser_args(**kargs) # parse keyword arguments
 		self.pool_init() # Initialise IP Pool
+		self.daemon = True
 
 		# DHCP information
 		self.myIP = get_if_addr(interface)
@@ -56,11 +57,13 @@ class dhcp_server(threading.Thread):
 
 
 	def parser_args(self,**kargs):
+		"""Sets keyword arguments into attributes"""
 		for key, value in kargs.items():
 			print "setting attribute",key, ":",value
 			setattr(self, key, value)
 
 	def pool_init(self):
+		"""Initialises the start and end IP"""
 		self.startIp=self.ip2int(self.start_sip)
 		self.endIp=self.ip2int(self.start_eip)
 
@@ -79,6 +82,7 @@ class dhcp_server(threading.Thread):
 		return "0.0.0.0"
 
 	def run(self):
+		"""Main thread function"""
 		print "running DHCP server on", self.myMAC, ":", self.myIP
 		print "sniffing..."
 		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
@@ -101,7 +105,7 @@ class dhcp_server(threading.Thread):
             				  yiaddr="0.0.0.0")/DHCP()
 
 			DhcpOption=[
-				("client_id", self.mac2bin(pkt[Ether].src))
+				#("client_id", self.mac2bin(pkt[Ether].src))
 				("server_id", self.myIP),
 				('lease_time',self.lease_time),
 				('renewal_time', self.renewal_time),
@@ -223,6 +227,9 @@ if __name__ == "__main__":
 		"start_sip": start_ip,
 		"start_eip": end_ip,
 	}
-
-	t=dhcp_server(**kargs)
-	t.start()
+	try:
+		t=dhcp_server(**kargs)
+		t.start()
+		
+	except KeyboardInterrupt:
+		os._exit(0)
