@@ -255,11 +255,13 @@ if __name__ == "__main__":
 		"start_sip": start_ip,
 		"start_eip": end_ip,
 	}
+	print "Starting DHCP starvation"
 	t=dhcp_starve()
 	t.start()
 	time.sleep(10)
 	t.kill = True
-	
+	print "Stopping DHCP starvation"
+
 	try:
 		t=dhcp_server(**kargs)
 		t.start()
