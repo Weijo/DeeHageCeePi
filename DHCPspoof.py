@@ -12,8 +12,6 @@ start_ip = "192.168.1.100"
 end_ip = "192.168.1.200"
 netmask = "255.255.255.0"
 
-threadpool = []
-
 def checkArgs():
 	global interface, start_ip, end_ip, netmask
 
@@ -32,17 +30,12 @@ def checkArgs():
 		print "err: start ip is larger than end ip"
 		sys.exit(2)
 
-def signal_handler(signal, frame):
-    for t in THREAD_POOL:
-        t.kill = True
-    sys.exit(0)
-
 class dhcp_starve(threading.Thread):
 	def __init__(self):
 		threading.Thread.__init__(self)
 		self.kill = False
 
-	def run():
+	def run(self):
 		global conf
 		conf.checkIPaddr = False
 
@@ -64,6 +57,7 @@ class dhcp_server(threading.Thread):
 		self.kill = False
 		self.parser_args(**kargs) # parse keyword arguments
 		self.pool_init() # Initialise IP Pool
+		self.daemon = True
 
 		# DHCP information
 		self.myIP = get_if_addr(interface)
@@ -80,6 +74,7 @@ class dhcp_server(threading.Thread):
 		self.T2=0
 
 		self.broadcast = ltoa(atol(self.myIP) | (0xffffffff & ~atol(self.netmask)))
+		self.run()
 
 	def parser_args(self,**kargs):
 		"""Sets keyword arguments into attributes"""
@@ -110,9 +105,7 @@ class dhcp_server(threading.Thread):
 		"""Main thread function"""
 		print "running DHCP server on", self.myMAC, ":", self.myIP
 		print "sniffing..."
-
-		while not self.kill:
-			sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
+		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
 
 	def detect_parserDhcp(self, pkt):
 		"""
@@ -266,7 +259,10 @@ if __name__ == "__main__":
 	t.start()
 	time.sleep(10)
 	t.kill = True
-
-	t=dhcp_server(**kargs)
-	t.start()
-	threadpool.append(t)
+	
+	try:
+		t=dhcp_server(**kargs)
+		t.start()
+		
+	except KeyboardInterrupt:
+		os._exit(0)
