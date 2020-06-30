@@ -247,7 +247,6 @@ class dhcp_server(threading.Thread):
 
 if __name__ == "__main__":
 	checkArgs()
-	signal.signal(signal.SIGINT, signal_handler)
 
 	kargs = {
 		"iface": interface,
@@ -261,7 +260,7 @@ if __name__ == "__main__":
 	time.sleep(10)
 	t.kill = True
 	print "Stopping DHCP starvation"
-
+	
 	try:
 		t=dhcp_server(**kargs)
 		t.start()
