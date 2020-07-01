@@ -102,7 +102,6 @@ class dhcp_server(threading.Thread):
 		self.T2=0
 
 		self.broadcast = ltoa(atol(self.myIP) | (0xffffffff & ~atol(self.netmask)))
-		self.run()
 
 	def parser_args(self,**kargs):
 		"""Sets keyword arguments into attributes"""
