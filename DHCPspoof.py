@@ -86,7 +86,6 @@ class dhcp_server(threading.Thread):
 		self.kill = False
 		self.parser_args(**kargs) # parse keyword arguments
 		self.pool_init() # Initialise IP Pool
-		self.daemon = True
 
 		# DHCP information
 		self.myIP = get_if_addr(interface)
