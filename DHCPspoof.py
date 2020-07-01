@@ -11,6 +11,7 @@ interface = "lo"
 start_ip = "192.168.1.100"
 end_ip = "192.168.1.200"
 netmask = "255.255.255.0"
+starve = False
 
 def checkArgs():
 	global interface, start_ip, end_ip, netmask
@@ -20,11 +21,13 @@ def checkArgs():
 	parser.add_argument("start", help="DHCP start IP")
 	parser.add_argument("end", help="DHCP end IP")
 	parser.add_argument("netmask", help="DHCP netmask")
+	parser.add_argument("-s", "--starve", action="store_true", help="Sends DISCOVER packets to deplete existing DHCP server's pool")
 	args = parser.parse_args()
 	interface = args.interface
 	start_ip = args.start
 	end_ip = args.end
 	netmask = args.netmask
+	starve = args.starve
 
 	if atol(start_ip) > atol(end_ip):
 		print "err: start ip is larger than end ip"
@@ -254,12 +257,14 @@ if __name__ == "__main__":
 		"start_sip": start_ip,
 		"start_eip": end_ip,
 	}
-	print "Starting DHCP starvation"
-	t=dhcp_starve()
-	t.start()
-	time.sleep(10)
-	t.kill = True
-	print "Stopping DHCP starvation"
+
+	if starve:
+		print "Starting DHCP starvation"
+		t=dhcp_starve()
+		t.start()
+		time.sleep(10)
+		t.kill = True
+		print "Stopping DHCP starvation"
 	
 	try:
 		t=dhcp_server(**kargs)
