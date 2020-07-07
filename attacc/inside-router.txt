@@ -1,0 +1,25 @@
+no ip dhcp pool inside-pool
+
+int g1/0/1
+ no ip address 192.168.2.250 255.255.255.252
+ switchport
+
+int g1/0/3
+ no ip address 192.168.10.1 255.255.255.0
+ switchport
+
+int g1/0/5
+ no ip address 192.168.2.245 255.255.255.252
+ switchport
+
+exit
+
+no ip routing
+
+no router ospf 1
+
+no ip default-gateway 192.168.10.1
+ip default-gateway 192.168.1.1
+
+no ip access-list extended block-inside
+no ip access-list extended block-outside

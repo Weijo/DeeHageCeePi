@@ -1,0 +1,20 @@
+int g1/0/1
+ no ip address 192.168.1.1 255.255.255.0
+ switchport
+
+int g1/0/3
+ no ip address 192.168.2.246 255.255.255.252
+ switchport
+
+int g1/0/5
+ no ip address 192.168.2.246 255.255.255.252
+ switchport
+
+exit
+
+no ip routing
+
+no router ospf 1
+
+no ip access-list extended block-outside
+no ip access-list extended block-inside

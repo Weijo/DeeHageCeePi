@@ -1,0 +1,14 @@
+int g0/1
+ ip address 192.168.1.1 255.255.255.0
+
+int g0/2
+ shutdown
+
+exit
+
+router ospf 1
+ no network 192.168.2.248 0.0.0.3 area 0
+ no network 192.168.2.252 0.0.0.3 area 0
+ network 192.168.1.0 0.0.0.255 area 0
+
+no ip access-list extended block-outside
