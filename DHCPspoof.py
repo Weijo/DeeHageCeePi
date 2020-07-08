@@ -80,8 +80,8 @@ class dhcp_server(threading.Thread):
 		self.T1=0
 		self.T2=0
 		self.broadcast = ltoa(atol(self.myIP) | (0xffffffff & ~atol(self.netmask)))
-                self.daemon = True
-                self.run()
+		self.daemon = True
+		self.run()
 
 	def parser_args(self,**kargs):
 		"""Sets keyword arguments into attributes"""
@@ -110,9 +110,9 @@ class dhcp_server(threading.Thread):
 
 	def run(self):
 		"""Main thread function"""
-                print "running DHCP server on", self.myMAC, ":", self.myIP
-                print "sniffing..."
-                sniff(filter=self.filter, prn=self.detect_parserDhcp, store=0, iface=self.iface)
+		print "running DHCP server on", self.myMAC, ":", self.myIP
+		print "sniffing..."
+		sniff(filter=self.filter, prn=self.detect_parserDhcp, store=0, iface=self.iface)
 
 	def detect_parserDhcp(self, pkt):
 		"""
@@ -130,14 +130,25 @@ class dhcp_server(threading.Thread):
 		"""
 		if DHCP in pkt:
 			# Set up base packet
-			raw=Ether()/IP()/UDP(sport=67,dport=68)/BOOTP()/DHCP()
-			raw[Ether].src, raw[IP].src = self.myMAC, self.myIP
-			raw[Ether].dst, raw[IP].dst = pkt[Ether].src, "255.255.255.255"
-			raw[BOOTP]= BOOTP(op = 2, # reply
-							  xid = pkt[BOOTP].xid,
-							  chaddr= self.mac2bin(pkt[Ether].src),
-							  yiaddr="0.0.0.0")/DHCP()
+			if pkt[IP].src == "0.0.0.0":
+				raw=Ether()/IP()/UDP(sport=67,dport=68)/BOOTP()/DHCP()
+				raw[Ether].src, raw[IP].src = self.myMAC, self.myIP
+				raw[Ether].dst, raw[IP].dst = pkt[Ether].src, "255.255.255.255"
+				raw[BOOTP]= BOOTP(op = 2, # reply
+								  xid = pkt[BOOTP].xid,
+								  chaddr= self.mac2bin(pkt[Ether].src),
+								  yiaddr="0.0.0.0")/DHCP()
 
+			# Packet came from relay agent
+			else:
+				raw=Ether()/IP()/UDP(sport=67,dport=68)/BOOTP()/DHCP()
+				raw[Ether].src, raw[IP].src = self.myMAC, self.myIP
+				raw[Ether].dst, raw[IP].dst = pkt[Ether].src, pkt[IP].src
+				raw[BOOTP]= BOOTP(op = 2, # reply
+								  xid = pkt[BOOTP].xid,
+								  chaddr= self.mac2bin(pkt[Ether].src),
+								  yiaddr="0.0.0.0",
+								  giaddr=pkt[IP].src)/DHCP()
 			DhcpOption=[
 				#('client_id', chr(1), self.mac2bin(pkt[Ether].src))
 				('server_id', self.myIP),
@@ -265,19 +276,19 @@ if __name__ == "__main__":
 
 	try:
 		if starve:
-				print "Starting DHCP starvation"
-				t=dhcp_starve()
-				t.start()
-				time.sleep(10)
-				t.kill = True
-				print "Stopping DHCP starvation"
+			print "Starting DHCP starvation"
+			t=dhcp_starve()
+			t.start()
+			time.sleep(10)
+			t.kill = True
+			print "Stopping DHCP starvation"
 
 		t = dhcp_server(**kargs)
 		t.start()
 		threadPool.append(t)
 		
-    except KeyboardInterrupt:
-        for t in threadPool:
-            t.join()
+	except KeyboardInterrupt:
+		for t in threadPool:
+			t.join()
 
-        sys.exit(0)
+		sys.exit(0)
