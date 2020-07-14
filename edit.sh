@@ -1,5 +1,6 @@
-sudo rm /etc/network/interfaces -rf
+ifconfig eth0 down
 
+sudo rm /etc/network/interfaces -rf
 echo 'auto eth0' > /etc/network/interfaces
 echo 'iface eth0 inet static' >> /etc/network/interfaces
 echo 'address 192.168.3.4' >> /etc/network/interfaces
